@@ -58,3 +58,31 @@ class Transcriber:
         except Exception as e:
             logger.error(f"Erro na inferência do Whisper: {e}")
             return ""
+
+    def transcribe_file_iter(self, file_path, vad_filter=True):
+        """
+        Transcribes an audio or video file and yields timestamped segments.
+        """
+        try:
+            segments, info = self.model.transcribe(
+                file_path,
+                language=self.language,
+                beam_size=3,
+                temperature=0.0,
+                condition_on_previous_text=False,
+                without_timestamps=False,
+                vad_filter=vad_filter
+            )
+
+            for seg in segments:
+                text = (seg.text or "").strip()
+                if not text:
+                    continue
+                yield {
+                    "start": float(seg.start),
+                    "end": float(seg.end),
+                    "text": text,
+                }
+        except Exception as e:
+            logger.error(f"Erro na transcrição do arquivo '{file_path}': {e}")
+            raise

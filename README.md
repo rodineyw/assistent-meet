@@ -69,6 +69,7 @@ uv run python main.py
 O painel permite:
 
 - iniciar, pausar, retomar e encerrar a reuniao;
+- importar um arquivo de audio ou video para transcricao offline;
 - acompanhar o status da captura;
 - ver a transcricao em tempo real;
 - exibir um icone na bandeja do sistema do Windows enquanto o app estiver aberto;
@@ -130,6 +131,12 @@ Trocar para um modelo mais leve:
 uv run meet-assist record --model base
 ```
 
+Importar um arquivo local pelo app:
+
+- clique em `Importar Áudio`;
+- selecione um arquivo como `.wav`, `.mp3`, `.m4a`, `.flac`, `.mp4` ou `.mkv`;
+- o app transcreve offline e salva o resultado em `transcricoes/`.
+
 ## Modelos recomendados
 
 - `tiny`: muito rapido, mas menos preciso;
@@ -153,6 +160,8 @@ Dentro dela voce encontra:
 - `events.jsonl`: eventos estruturados com tempo, fonte e texto;
 - `transcript_diarizado.md`: versao com rotulos heuristico de falantes;
 - `events_diarized.jsonl`: eventos diarizados com `speaker_label`.
+
+Quando a origem for um arquivo importado, os eventos aparecem com a fonte `Arquivo`.
 
 Hoje o fluxo principal nao depende de Ollama e nao gera automaticamente `transcript_revisado.md` nem `meeting_report.md`.
 
@@ -241,6 +250,30 @@ Para ativar a checagem, configure a URL desse manifesto em um destes pontos:
 
 - constante `UPDATE_METADATA_URL` em [utils/app_info.py](/c:/Users/rodin/Documents/projetos/assistent-meet/utils/app_info.py);
 - variavel de ambiente `ASSISTENTE_MEET_UPDATE_URL`.
+
+Ou configure diretamente um repositorio GitHub e deixe o app montar a URL bruta do manifesto:
+
+- `GITHUB_REPOSITORY` em `utils/app_info.py`, por exemplo `seu-usuario/seu-repo`;
+- `GITHUB_MANIFEST_BRANCH`, normalmente `main`;
+- `GITHUB_MANIFEST_PATH`, por exemplo `latest.json`.
+
+Tambem existem equivalentes por variavel de ambiente:
+
+- `ASSISTENTE_MEET_GITHUB_REPOSITORY`
+- `ASSISTENTE_MEET_GITHUB_BRANCH`
+- `ASSISTENTE_MEET_GITHUB_MANIFEST_PATH`
+
+Uma estrategia simples de release no GitHub e:
+
+1. subir o `latest.json` para o repositorio;
+2. publicar o instalador em GitHub Releases;
+3. apontar `download_url` para o asset da release.
+
+Exemplo de `download_url` usando GitHub Releases:
+
+```text
+https://github.com/seu-usuario/seu-repo/releases/latest/download/Assistente-Meet-Setup.exe
+```
 
 Quando houver uma versao maior que a atual, o app:
 

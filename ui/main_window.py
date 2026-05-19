@@ -8,7 +8,7 @@ from PySide6.QtCore import Qt, QPoint, QTimer, QObject, Signal, Slot, QUrl
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
     QPlainTextEdit, QPushButton, QComboBox, QLineEdit, QFrame, 
-    QMessageBox, QApplication, QMenu, QSystemTrayIcon
+    QMessageBox, QApplication, QMenu, QSystemTrayIcon, QFileDialog
 )
 from PySide6.QtGui import QPainter, QColor, QPen, QBrush, QTextCursor, QIcon, QPixmap, QAction, QDesktopServices
 from PySide6.QtSvg import QSvgRenderer
@@ -29,6 +29,7 @@ class RecorderSignalsBridge(QObject):
     rms_received = Signal(str, float)                        # source, rms_value
     meeting_stopped = Signal(object)                         # folder path or None
     update_check_finished = Signal(object)                   # update result payload
+    import_finished = Signal(object)                         # file import result payload
 
 
 def load_app_icon():
@@ -227,6 +228,7 @@ class MainWindow(QMainWindow):
         self.is_quitting = False
         self.update_check_in_progress = False
         self.last_update_result = None
+        self.current_task = None
         
         # Signals bridge
         self.bridge = RecorderSignalsBridge()
@@ -235,6 +237,7 @@ class MainWindow(QMainWindow):
         self.bridge.rms_received.connect(self._on_rms_received)
         self.bridge.meeting_stopped.connect(self._on_meeting_stopped)
         self.bridge.update_check_finished.connect(self._on_update_check_finished)
+        self.bridge.import_finished.connect(self._on_import_finished)
         
         # Floating window
         self.floating_widget = FloatingWaveform()
@@ -410,6 +413,10 @@ class MainWindow(QMainWindow):
         self.btn_record.setObjectName("recordButton")
         self.btn_record.clicked.connect(self._on_record_clicked)
         control_layout.addWidget(self.btn_record)
+
+        self.btn_import = QPushButton("Importar Áudio", self)
+        self.btn_import.clicked.connect(self._on_import_clicked)
+        control_layout.addWidget(self.btn_import)
         
         self.btn_stop = QPushButton("Encerrar Reunião", self)
         self.btn_stop.setEnabled(False)
@@ -577,8 +584,35 @@ class MainWindow(QMainWindow):
             f"Dados do usuario: {app_data_dir}\n"
             f"URL de atualizacao: {update_url}",
         )
+
+    def _set_idle_ui(self):
+        self.setup_card.setEnabled(True)
+        self.btn_record.setEnabled(True)
+        self.btn_record.setText("Iniciar Reunião")
+        self.btn_record.setProperty("recording", "false")
+        self.btn_record.setStyle(self.btn_record.style())
+        self.btn_import.setEnabled(True)
+        self.btn_stop.setEnabled(False)
+        self.status_badge.setText("Inativo")
+
+        self.big_wave.set_rms(0.0, 0.0)
+        self.floating_widget.set_rms(0.0)
+
+        self.current_task = None
+
+    def _set_busy_ui(self, mode, status_text):
+        self.current_task = mode
+        self.setup_card.setEnabled(False)
+        self.btn_record.setEnabled(mode == "meeting")
+        self.btn_import.setEnabled(False)
+        self.btn_stop.setEnabled(mode == "meeting")
+        self.status_badge.setText(status_text)
                 
     def _on_record_clicked(self):
+        if self.current_task == "import":
+            QMessageBox.information(self, "Importacao em andamento", "Aguarde a transcrição do arquivo terminar.")
+            return
+
         if self.manager is None:
             # Start Recording
             meeting_name = self.input_meeting_name.text().strip() or "reuniao"
@@ -587,8 +621,9 @@ class MainWindow(QMainWindow):
             speaker_name = self.combo_speaker.currentData()
             
             self.transcript_area.clear()
-            self.setup_card.setEnabled(False)
+            self._set_busy_ui("meeting", "Inicializando...")
             self.btn_stop.setEnabled(True)
+            self.btn_record.setEnabled(True)
             self.btn_record.setProperty("recording", "true")
             self.btn_record.setStyle(self.btn_record.style()) # Refresh styling
             
@@ -614,6 +649,47 @@ class MainWindow(QMainWindow):
             else:
                 self.manager.pause_meeting()
                 self.btn_record.setText("Retomar")
+
+    def _on_import_clicked(self):
+        if self.current_task is not None:
+            QMessageBox.information(self, "Processamento em andamento", "Finalize o processamento atual antes de importar um novo arquivo.")
+            return
+
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Selecionar áudio ou vídeo",
+            "",
+            "Mídia suportada (*.wav *.mp3 *.m4a *.flac *.ogg *.mp4 *.mkv *.mov *.avi);;Todos os arquivos (*.*)"
+        )
+        if not file_path:
+            return
+
+        meeting_name = self.input_meeting_name.text().strip()
+        if not meeting_name:
+            meeting_name = os.path.splitext(os.path.basename(file_path))[0]
+
+        model_size = self.combo_model.currentText()
+        self.transcript_area.clear()
+        self._set_busy_ui("import", "Preparando importação...")
+        self.manager = MeetingManager(
+            meeting_name=meeting_name,
+            model_size=model_size,
+            no_mic=True,
+            no_speaker=True,
+            on_transcription=lambda src, st, et, txt: self.bridge.transcription_received.emit(src, st, et, txt),
+            on_status=lambda stat: self.bridge.status_changed.emit(stat),
+            on_rms=lambda src, val: self.bridge.rms_received.emit(src, val)
+        )
+
+        def run_import():
+            try:
+                folder = self.manager.transcribe_audio_file(file_path)
+                payload = {"folder": folder, "file_path": file_path, "error": None}
+            except Exception as exc:
+                payload = {"folder": None, "file_path": file_path, "error": str(exc)}
+            self.bridge.import_finished.emit(payload)
+
+        threading.Thread(target=run_import, daemon=True).start()
                 
     def _on_stop_clicked(self):
         if self.manager is not None:
@@ -632,23 +708,35 @@ class MainWindow(QMainWindow):
     def _on_meeting_stopped(self, folder):
         self.last_folder_path = folder
         self.manager = None
-        
-        self.setup_card.setEnabled(True)
-        self.btn_record.setEnabled(True)
-        self.btn_record.setText("Iniciar Reunião")
-        self.btn_record.setProperty("recording", "false")
-        self.btn_record.setStyle(self.btn_record.style())
-        
-        self.status_badge.setText("Inativo")
-        
-        # Reset waves
-        self.big_wave.set_rms(0.0, 0.0)
-        self.floating_widget.set_rms(0.0)
+        self._set_idle_ui()
         
         QMessageBox.information(
             self,
             "Reunião Finalizada",
             f"A gravação foi concluída e os arquivos de transcrição foram salvos em:\n{folder}"
+        )
+
+    @Slot(object)
+    def _on_import_finished(self, payload):
+        folder = payload.get("folder")
+        error = payload.get("error")
+        source_file = payload.get("file_path")
+        self.last_folder_path = folder or self.last_folder_path
+        self.manager = None
+        self._set_idle_ui()
+
+        if error:
+            QMessageBox.warning(
+                self,
+                "Falha na importação",
+                f"Não foi possível transcrever o arquivo:\n{source_file}\n\nDetalhes: {error}"
+            )
+            return
+
+        QMessageBox.information(
+            self,
+            "Importação Finalizada",
+            f"O arquivo foi transcrito com sucesso.\n\nOrigem:\n{source_file}\n\nArquivos salvos em:\n{folder}"
         )
         
     def _on_copy_clicked(self):
@@ -718,6 +806,11 @@ class MainWindow(QMainWindow):
             self.floating_widget.set_rms(max(rms, self.big_wave.mic_rms))
             
     def closeEvent(self, event):
+        if self.current_task == "import":
+            QMessageBox.information(self, "Importação em andamento", "Aguarde a importação terminar antes de fechar o aplicativo.")
+            event.ignore()
+            return
+
         # Shut down floating widget and meeting manager
         self.floating_widget.close()
         if self.manager:

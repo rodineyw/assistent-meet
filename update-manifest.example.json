@@ -1,5 +1,5 @@
 {
   "version": "0.2.0",
-  "download_url": "https://seu-dominio.com/downloads/Assistente-Meet-Setup-0.2.0.exe",
+  "download_url": "https://github.com/seu-usuario/seu-repo/releases/latest/download/Assistente-Meet-Setup.exe",
   "notes": "Melhorias na transcricao em tempo real, icone na bandeja e ajustes de estabilidade."
 }

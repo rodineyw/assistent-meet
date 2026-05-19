@@ -41,6 +41,7 @@ class MeetingManager:
         self.transcription_thread = None
         self.is_recording = False
         self.is_paused = False
+        self.is_processing_file = False
         
         # Audio segment archive for final diarization
         self.all_segments = []
@@ -57,16 +58,13 @@ class MeetingManager:
         self.all_segments = []
         self.is_recording = True
         self.is_paused = False
+        self.is_processing_file = False
         
         self.set_status("Inicializando gravador de arquivos...")
         self.text_writer = TextWriter(self.meeting_name, self.start_time_struct)
         
-        self.set_status("Carregando modelo Whisper...")
         try:
-            self.transcriber = Transcriber(
-                model_size=self.model_size,
-                language=self.language
-            )
+            self._ensure_transcriber()
         except Exception as e:
             self.set_status(f"Falha ao carregar Whisper: {e}")
             self.is_recording = False
@@ -81,6 +79,16 @@ class MeetingManager:
         
         self.set_status("Ouvindo")
         return True
+
+    def _ensure_transcriber(self):
+        if self.transcriber is not None:
+            return
+
+        self.set_status("Carregando modelo Whisper...")
+        self.transcriber = Transcriber(
+            model_size=self.model_size,
+            language=self.language
+        )
         
     def _start_recorders(self):
         # 1. Microphone
@@ -241,3 +249,57 @@ class MeetingManager:
         final_folder = self.text_writer.folder_path
         self.set_status("Sessão finalizada com sucesso.")
         return final_folder
+
+    def transcribe_audio_file(self, file_path, source_name="Arquivo"):
+        """Transcribes a local media file offline and writes the same output artifacts."""
+        if self.is_recording or self.is_processing_file:
+            raise RuntimeError("Já existe um processamento em andamento.")
+
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"Arquivo não encontrado: {file_path}")
+
+        self.start_time_struct = datetime.datetime.now()
+        self.meeting_start_time = None
+        self.all_segments = []
+        self.is_paused = False
+        self.is_processing_file = True
+        self.text_writer = TextWriter(self.meeting_name, self.start_time_struct)
+
+        try:
+            self._ensure_transcriber()
+            self.set_status("Transcrevendo arquivo importado...")
+
+            for segment in self.transcriber.transcribe_file_iter(file_path, vad_filter=True):
+                start_time = segment["start"]
+                end_time = segment["end"]
+                text = segment["text"]
+
+                self.text_writer.append_event(source_name, start_time, end_time, text)
+                self.all_segments.append({
+                    "source": source_name,
+                    "timestamp": start_time,
+                    "duration": max(0.0, end_time - start_time),
+                    "text": text,
+                    "audio": None,
+                })
+
+                if self.on_transcription:
+                    self.on_transcription(source_name, start_time, end_time, text)
+
+            self.set_status("Gerando arquivos finais...")
+            diarized_events = [
+                {
+                    "timestamp": item["timestamp"],
+                    "duration": item["duration"],
+                    "text": item["text"],
+                    "speaker_label": "usuario_1",
+                }
+                for item in self.all_segments
+            ]
+            self.text_writer.write_diarized(diarized_events)
+
+            final_folder = self.text_writer.folder_path
+            self.set_status("Sessão finalizada com sucesso.")
+            return final_folder
+        finally:
+            self.is_processing_file = False
