@@ -1,9 +1,31 @@
 import os
 import logging
+from contextlib import contextmanager
+
 from faster_whisper import WhisperModel
+from faster_whisper.audio import decode_audio
 from utils.app_paths import get_models_dir
 
 logger = logging.getLogger("Transcriber")
+
+
+@contextmanager
+def suppress_stderr():
+    """Temporarily redirects process stderr to os.devnull for noisy native libraries."""
+    stderr_fd = None
+    devnull_fd = None
+
+    try:
+        stderr_fd = os.dup(2)
+        devnull_fd = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(devnull_fd, 2)
+        yield
+    finally:
+        if stderr_fd is not None:
+            os.dup2(stderr_fd, 2)
+            os.close(stderr_fd)
+        if devnull_fd is not None:
+            os.close(devnull_fd)
 
 class Transcriber:
     def __init__(self, model_size="small", device="cpu", compute_type="int8", cpu_threads=4, language="pt"):
@@ -64,8 +86,14 @@ class Transcriber:
         Transcribes an audio or video file and yields timestamped segments.
         """
         try:
+            # PyAV/FFmpeg may emit repetitive COM initialization warnings on Windows
+            # when probing media containers. We silence stderr here and still surface
+            # actual failures through Python exceptions below.
+            with suppress_stderr():
+                audio_data = decode_audio(file_path, sampling_rate=16000)
+
             segments, info = self.model.transcribe(
-                file_path,
+                audio_data,
                 language=self.language,
                 beam_size=3,
                 temperature=0.0,

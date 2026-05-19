@@ -655,12 +655,16 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Processamento em andamento", "Finalize o processamento atual antes de importar um novo arquivo.")
             return
 
-        file_path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Selecionar áudio ou vídeo",
-            "",
-            "Mídia suportada (*.wav *.mp3 *.m4a *.flac *.ogg *.mp4 *.mkv *.mov *.avi);;Todos os arquivos (*.*)"
-        )
+        dialog = QFileDialog(self, "Selecionar áudio ou vídeo")
+        dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
+        dialog.setNameFilter("Mídia suportada (*.wav *.mp3 *.m4a *.flac *.ogg *.mp4 *.mkv *.mov *.avi);;Todos os arquivos (*.*)")
+        dialog.setOption(QFileDialog.Option.DontUseNativeDialog, True)
+
+        if not dialog.exec():
+            return
+
+        selected_files = dialog.selectedFiles()
+        file_path = selected_files[0] if selected_files else ""
         if not file_path:
             return
 
