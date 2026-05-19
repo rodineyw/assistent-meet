@@ -71,6 +71,9 @@ O painel permite:
 - iniciar, pausar, retomar e encerrar a reuniao;
 - acompanhar o status da captura;
 - ver a transcricao em tempo real;
+- exibir um icone na bandeja do sistema do Windows enquanto o app estiver aberto;
+- verificar se existe uma nova versao disponivel;
+- abrir uma tela "Sobre" com a versao atual;
 - abrir a pasta de transcricoes;
 - abrir o transcript no Bloco de Notas.
 
@@ -98,6 +101,7 @@ Por padrao o app:
 - usa o alto-falante padrao para captura por loopback;
 - grava os arquivos da sessao em `transcricoes/`;
 - mostra novos blocos de texto durante a reuniao;
+- exibe um icone no tray do Windows durante a execucao;
 - gera diarizacao heuristica ao encerrar.
 
 ## Exemplos uteis
@@ -191,6 +195,59 @@ Se a transcricao estiver lenta:
 - capture apenas a fonte necessaria com `--no-mic` ou `--no-speaker`;
 - feche apps pesados que disputem CPU;
 - teste primeiro com audio limpo e volume mais alto.
+
+## Build para Windows
+
+Para gerar a versao distribuivel:
+
+```powershell
+.\.venv\Scripts\python.exe .\scripts\build_windows.py
+```
+
+Esse script faz o seguinte:
+
+- converte o SVG do app em `.ico`;
+- gera o executavel com `PyInstaller`;
+- prepara o script do instalador do Inno Setup;
+- compila o instalador automaticamente se o `iscc` estiver instalado no Windows.
+
+Artefatos esperados:
+
+- `dist/Assistente Meet/Assistente Meet.exe`: versao portatil;
+- `build/AssistenteMeet.generated.iss`: script do instalador;
+- `dist-installer/`: instalador final, quando o Inno Setup estiver disponivel.
+
+## Atualizacoes de versao
+
+O app ja possui verificacao de atualizacao automatica e manual, mas voce precisa publicar um manifesto JSON em uma URL publica.
+
+Existe um exemplo pronto em:
+
+```text
+update-manifest.example.json
+```
+
+Formato esperado:
+
+```json
+{
+  "version": "0.2.0",
+  "download_url": "https://seu-dominio.com/downloads/Assistente-Meet-Setup-0.2.0.exe",
+  "notes": "Melhorias na transcricao em tempo real."
+}
+```
+
+Para ativar a checagem, configure a URL desse manifesto em um destes pontos:
+
+- constante `UPDATE_METADATA_URL` em [utils/app_info.py](/c:/Users/rodin/Documents/projetos/assistent-meet/utils/app_info.py);
+- variavel de ambiente `ASSISTENTE_MEET_UPDATE_URL`.
+
+Quando houver uma versao maior que a atual, o app:
+
+- avisa automaticamente ao iniciar;
+- permite verificacao manual pelo botao `Atualizacoes`;
+- mostra o aviso tambem pelo icone da bandeja do sistema;
+- pode abrir a URL de download da nova versao.
 
 ## Estrutura principal
 

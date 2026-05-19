@@ -4,20 +4,21 @@ import logging
 import subprocess
 import threading
 import ctypes
-from PySide6.QtCore import Qt, QPoint, QTimer, QObject, Signal, Slot
+from PySide6.QtCore import Qt, QPoint, QTimer, QObject, Signal, Slot, QUrl
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
     QPlainTextEdit, QPushButton, QComboBox, QLineEdit, QFrame, 
-    QMessageBox, QDialog, QApplication, QSizePolicy
+    QMessageBox, QApplication, QMenu, QSystemTrayIcon
 )
-from PySide6.QtGui import QPainter, QColor, QPen, QBrush, QTextCursor, QIcon, QPixmap
+from PySide6.QtGui import QPainter, QColor, QPen, QBrush, QTextCursor, QIcon, QPixmap, QAction, QDesktopServices
 from PySide6.QtSvg import QSvgRenderer
 import soundcard as sc
 
 from utils.meeting_manager import MeetingManager
-from utils.app_info import APP_ID, APP_NAME
+from utils.app_info import APP_ID, APP_NAME, get_app_version, get_update_metadata_url
+from utils.app_update import check_for_updates
 from utils.clipboard import copy_to_clipboard
-from utils.app_paths import get_app_icon_path, get_transcripts_dir, get_ui_asset_path
+from utils.app_paths import get_app_icon_path, get_project_root, get_transcripts_dir, get_ui_asset_path
 
 logger = logging.getLogger("MainWindow")
 
@@ -27,6 +28,7 @@ class RecorderSignalsBridge(QObject):
     status_changed = Signal(str)
     rms_received = Signal(str, float)                        # source, rms_value
     meeting_stopped = Signal(object)                         # folder path or None
+    update_check_finished = Signal(object)                   # update result payload
 
 
 def load_app_icon():
@@ -221,6 +223,10 @@ class MainWindow(QMainWindow):
         
         self.manager = None
         self.last_folder_path = None
+        self.tray_icon = None
+        self.is_quitting = False
+        self.update_check_in_progress = False
+        self.last_update_result = None
         
         # Signals bridge
         self.bridge = RecorderSignalsBridge()
@@ -228,6 +234,7 @@ class MainWindow(QMainWindow):
         self.bridge.status_changed.connect(self._on_status_changed)
         self.bridge.rms_received.connect(self._on_rms_received)
         self.bridge.meeting_stopped.connect(self._on_meeting_stopped)
+        self.bridge.update_check_finished.connect(self._on_update_check_finished)
         
         # Floating window
         self.floating_widget = FloatingWaveform()
@@ -238,6 +245,8 @@ class MainWindow(QMainWindow):
         
         # Initialize UI components
         self._init_ui()
+        self._init_tray_icon()
+        QTimer.singleShot(1200, lambda: self._start_update_check(silent=True))
         
     def _load_stylesheet(self):
         qss_path = get_ui_asset_path("style.qss")
@@ -253,6 +262,47 @@ class MainWindow(QMainWindow):
         if not app_icon.isNull():
             self.setWindowIcon(app_icon)
             self.floating_widget.setWindowIcon(app_icon)
+
+    def _init_tray_icon(self):
+        if not QSystemTrayIcon.isSystemTrayAvailable():
+            logger.warning("System tray nao esta disponivel neste ambiente.")
+            return
+
+        self.tray_icon = QSystemTrayIcon(self)
+        tray_icon = load_app_icon()
+        if not tray_icon.isNull():
+            self.tray_icon.setIcon(tray_icon)
+
+        self.tray_icon.setToolTip(APP_NAME)
+
+        tray_menu = QMenu(self)
+        action_show = QAction("Abrir", self)
+        action_show.triggered.connect(self._show_from_tray)
+        tray_menu.addAction(action_show)
+
+        action_hide = QAction("Ocultar", self)
+        action_hide.triggered.connect(self.hide)
+        tray_menu.addAction(action_hide)
+
+        tray_menu.addSeparator()
+
+        action_check_updates = QAction("Verificar Atualizacoes", self)
+        action_check_updates.triggered.connect(self._on_check_updates_clicked)
+        tray_menu.addAction(action_check_updates)
+
+        action_about = QAction("Sobre", self)
+        action_about.triggered.connect(self._show_about_dialog)
+        tray_menu.addAction(action_about)
+
+        tray_menu.addSeparator()
+
+        action_quit = QAction("Sair", self)
+        action_quit.triggered.connect(self._quit_application)
+        tray_menu.addAction(action_quit)
+
+        self.tray_icon.setContextMenu(tray_menu)
+        self.tray_icon.activated.connect(self._on_tray_activated)
+        self.tray_icon.show()
                 
     def _init_ui(self):
         central_widget = QWidget(self)
@@ -286,6 +336,14 @@ class MainWindow(QMainWindow):
         self.btn_toggle_float.setCheckable(True)
         self.btn_toggle_float.clicked.connect(self._toggle_floating_view)
         header_layout.addWidget(self.btn_toggle_float)
+
+        self.btn_check_updates = QPushButton("Atualizacoes", self)
+        self.btn_check_updates.clicked.connect(self._on_check_updates_clicked)
+        header_layout.addWidget(self.btn_check_updates)
+
+        self.btn_about = QPushButton("Sobre", self)
+        self.btn_about.clicked.connect(self._show_about_dialog)
+        header_layout.addWidget(self.btn_about)
         
         main_layout.addLayout(header_layout)
         
@@ -399,7 +457,127 @@ class MainWindow(QMainWindow):
             self.floating_widget.show()
         else:
             self.floating_widget.hide()
-            
+
+    def _show_from_tray(self):
+        self.showNormal()
+        self.raise_()
+        self.activateWindow()
+
+    def _quit_application(self):
+        self.is_quitting = True
+        if self.tray_icon:
+            self.tray_icon.hide()
+        self.close()
+
+    def _on_tray_activated(self, reason):
+        if reason in (QSystemTrayIcon.Trigger, QSystemTrayIcon.DoubleClick):
+            if self.isVisible() and not self.isMinimized():
+                self.hide()
+            else:
+                self._show_from_tray()
+
+    def _on_check_updates_clicked(self):
+        self._start_update_check(silent=False)
+
+    def _start_update_check(self, silent):
+        if self.update_check_in_progress:
+            if not silent:
+                QMessageBox.information(self, "Atualizacoes", "Ja existe uma verificacao em andamento.")
+            return
+
+        self.update_check_in_progress = True
+        if not silent:
+            self.status_badge.setText("Verificando atualizacoes...")
+
+        def run_update_check():
+            result = check_for_updates()
+            result["silent"] = silent
+            self.bridge.update_check_finished.emit(result)
+
+        threading.Thread(target=run_update_check, daemon=True).start()
+
+    @Slot(object)
+    def _on_update_check_finished(self, result):
+        self.update_check_in_progress = False
+        self.last_update_result = result
+
+        if self.manager is None:
+            self.status_badge.setText("Inativo")
+
+        status = result.get("status")
+        silent = bool(result.get("silent"))
+
+        if status == "update_available":
+            latest_version = result.get("latest_version", "")
+            notes = result.get("notes", "")
+            message = f"Uma nova versao do {APP_NAME} esta disponivel.\n\nVersao atual: {result.get('current_version', '-')}\nNova versao: {latest_version}"
+            if notes:
+                message += f"\n\nNovidades:\n{notes}"
+
+            if self.tray_icon:
+                self.tray_icon.showMessage(
+                    APP_NAME,
+                    f"Nova versao disponivel: {latest_version}",
+                    QSystemTrayIcon.Information,
+                    10000,
+                )
+
+            buttons = QMessageBox.StandardButton.Ok
+            download_url = result.get("download_url")
+            box = QMessageBox(self)
+            box.setWindowTitle("Atualizacao Disponivel")
+            box.setIcon(QMessageBox.Icon.Information)
+            box.setText(message)
+            if download_url:
+                download_button = box.addButton("Baixar Atualizacao", QMessageBox.ButtonRole.AcceptRole)
+            else:
+                download_button = None
+            box.addButton("Fechar", QMessageBox.ButtonRole.RejectRole)
+            box.exec()
+
+            if download_button is not None and box.clickedButton() is download_button:
+                QDesktopServices.openUrl(QUrl(download_url))
+            return
+
+        if silent:
+            return
+
+        if status == "up_to_date":
+            QMessageBox.information(
+                self,
+                "Atualizacoes",
+                f"Voce ja esta usando a versao mais recente ({result.get('current_version', '-')}).",
+            )
+            return
+
+        if status == "not_configured":
+            QMessageBox.warning(
+                self,
+                "Atualizacoes",
+                "A verificacao de atualizacoes ainda nao foi configurada.\n\n"
+                "Defina uma URL publica em `utils/app_info.py` ou pela variavel `ASSISTENTE_MEET_UPDATE_URL`.",
+            )
+            return
+
+        QMessageBox.warning(
+            self,
+            "Atualizacoes",
+            result.get("message", "Nao foi possivel verificar atualizacoes agora."),
+        )
+
+    def _show_about_dialog(self):
+        current_version = get_app_version()
+        update_url = get_update_metadata_url() or "Nao configurada"
+        app_data_dir = get_project_root()
+        QMessageBox.information(
+            self,
+            f"Sobre o {APP_NAME}",
+            f"{APP_NAME}\n"
+            f"Versao: {current_version}\n"
+            f"Dados do usuario: {app_data_dir}\n"
+            f"URL de atualizacao: {update_url}",
+        )
+                
     def _on_record_clicked(self):
         if self.manager is None:
             # Start Recording
@@ -544,6 +722,8 @@ class MainWindow(QMainWindow):
         self.floating_widget.close()
         if self.manager:
             self.manager.stop_meeting()
+        if self.tray_icon:
+            self.tray_icon.hide()
         event.accept()
 
 
