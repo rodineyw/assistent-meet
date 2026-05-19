@@ -23,6 +23,7 @@ class RecorderSignalsBridge(QObject):
     transcription_received = Signal(str, float, float, str)  # source, start_time, end_time, text
     status_changed = Signal(str)
     rms_received = Signal(str, float)                        # source, rms_value
+    meeting_stopped = Signal(object)                         # folder path or None
 
 
 class MiniWaveWidget(QWidget):
@@ -196,6 +197,7 @@ class MainWindow(QMainWindow):
         self.bridge.transcription_received.connect(self._on_transcription_received)
         self.bridge.status_changed.connect(self._on_status_changed)
         self.bridge.rms_received.connect(self._on_rms_received)
+        self.bridge.meeting_stopped.connect(self._on_meeting_stopped)
         
         # Floating window
         self.floating_widget = FloatingWaveform()
@@ -400,12 +402,11 @@ class MainWindow(QMainWindow):
             # Stop and finalize in a background thread to prevent GUI freezing
             def run_stop():
                 folder = self.manager.stop_meeting()
-                
-                # Restore UI state on main thread
-                QTimer.singleShot(0, lambda: self._on_meeting_stopped(folder))
+                self.bridge.meeting_stopped.emit(folder)
                 
             threading.Thread(target=run_stop, daemon=True).start()
             
+    @Slot(object)
     def _on_meeting_stopped(self, folder):
         self.last_folder_path = folder
         self.manager = None
