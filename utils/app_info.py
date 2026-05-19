@@ -7,7 +7,7 @@ APP_PUBLISHER = "Assistente Meet"
 APP_ID = "com.assistentmeet.desktop"
 DEFAULT_VERSION = "0.2.0-alpha"
 UPDATE_METADATA_URL = ""
-GITHUB_REPOSITORY = ""
+GITHUB_REPOSITORY = "rodineyw/assistent-meet"
 GITHUB_MANIFEST_BRANCH = "main"
 GITHUB_MANIFEST_PATH = "latest.json"
 
@@ -30,9 +30,16 @@ def get_update_metadata_url():
 
 def get_github_manifest_url():
     """Builds a raw GitHub URL for the update manifest when configured."""
-    repository = os.environ.get("ASSISTENTE_MEET_GITHUB_REPOSITORY", GITHUB_REPOSITORY).strip().strip("https://github.com/rodineyw/assistent-meet")
-    branch = os.environ.get("ASSISTENTE_MEET_GITHUB_BRANCH", GITHUB_MANIFEST_BRANCH).strip().strip("main")
-    manifest_path = os.environ.get("ASSISTENTE_MEET_GITHUB_MANIFEST_PATH", GITHUB_MANIFEST_PATH).strip().strip("latest.json").lstrip("/")
+    repository = os.environ.get("ASSISTENTE_MEET_GITHUB_REPOSITORY", GITHUB_REPOSITORY).strip()
+    branch = os.environ.get("ASSISTENTE_MEET_GITHUB_BRANCH", GITHUB_MANIFEST_BRANCH).strip()
+    manifest_path = os.environ.get("ASSISTENTE_MEET_GITHUB_MANIFEST_PATH", GITHUB_MANIFEST_PATH).strip().lstrip("/")
+
+    if repository.startswith("https://github.com/"):
+        repository = repository.removeprefix("https://github.com/")
+    elif repository.startswith("http://github.com/"):
+        repository = repository.removeprefix("http://github.com/")
+
+    repository = repository.strip().strip("/")
 
     if not repository:
         return ""

@@ -103,7 +103,7 @@ def run_pyinstaller(pyinstaller_path, icon_path, display_name):
 def write_inno_script(metadata, icon_path):
     script_path = BUILD_DIR / "AssistenteMeet.generated.iss"
     dist_dir = ROOT / "dist" / metadata["display_name"]
-    output_name = f"Assistente-Meet-Setup-{metadata['version']}"
+    output_name = "Assistente-Meet-Setup"
 
     script = textwrap.dedent(
         f"""
