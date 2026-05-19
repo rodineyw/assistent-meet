@@ -8,7 +8,6 @@ import soundcard as sc
 from utils.audio_capture import AudioRecorderThread
 from utils.transcriber import Transcriber
 from utils.text_writer import TextWriter
-from utils.postprocessor import get_ollama_model, query_ollama
 from utils.vad_detector import run_diarization
 
 logger = logging.getLogger("MeetingManager")
@@ -16,7 +15,7 @@ logger = logging.getLogger("MeetingManager")
 class MeetingManager:
     def __init__(self, meeting_name="reuniao", language="pt", model_size="small", 
                  no_mic=False, no_speaker=False, mic_name=None, speaker_name=None, 
-                 no_postprocess=False, on_transcription=None, on_status=None, on_rms=None):
+                 on_transcription=None, on_status=None, on_rms=None):
         self.meeting_name = meeting_name
         self.language = language
         self.model_size = model_size
@@ -24,7 +23,6 @@ class MeetingManager:
         self.no_speaker = no_speaker
         self.mic_name = mic_name
         self.speaker_name = speaker_name
-        self.no_postprocess = no_postprocess
         
         # Callbacks
         self.on_transcription = on_transcription  # fn(source, start_time, end_time, text)
@@ -220,7 +218,7 @@ class MeetingManager:
             self.spk_thread = None
             
     def stop_meeting(self):
-        """Stops the recording session, flushes VAD, clusters speakers, and post-processes transcripts."""
+        """Stops the recording session, flushes VAD, and writes the final offline transcripts."""
         if not self.is_recording:
             return None
             
@@ -240,62 +238,6 @@ class MeetingManager:
         diarized_events = run_diarization(self.all_segments)
         self.text_writer.write_diarized(diarized_events)
         
-        # 2. Ollama local LLM postprocessing
         final_folder = self.text_writer.folder_path
-        if not self.no_postprocess:
-            self.set_status("Contatando Ollama local...")
-            model = get_ollama_model()
-            if model:
-                self.set_status("Refinando texto e criando sumário...")
-                
-                # Format diarized events for LLM
-                transcript_text = ""
-                for ev in diarized_events:
-                    time_str = self.text_writer.format_timestamp(ev["timestamp"])
-                    transcript_text += f"**[{ev['speaker_label']}]** ({time_str}):\n{ev['text']}\n\n"
-                    
-                # Prompts
-                topic_prompt = f"""
-Você é um assistente de IA para reuniões. Com base na transcrição abaixo, infira um título curto (1 a 4 palavras) em português que resuma o assunto principal da reunião.
-Responda APENAS com o título curto, sem pontuação extra, introduções ou explicações.
-
-Transcrição:
-{transcript_text}
-"""
-                
-                correct_prompt = f"""
-Você é um revisor de texto especializado. Abaixo está a transcrição de uma reunião gerada por um sistema de reconhecimento de fala (ASR).
-A transcrição pode conter erros gramaticais, palavras trocadas devido ao som parecido, nomes próprios incorretos e falta de pontuação.
-Sua tarefa é corrigir e melhorar o texto mantendo o sentido original, os falantes e as falas intactas.
-Escreva o texto revisado no mesmo formato markdown original (ex: **[usuario_1]** (00:12): texto).
-Não adicione comentários seus, responda apenas com a transcrição revisada.
-
-Transcrição original:
-{transcript_text}
-"""
-                
-                report_prompt = f"""
-Você é um assistente executivo sênior. Com base na transcrição da reunião abaixo, gere um relatório profissional contendo:
-1. **Resumo Executivo**: Um parágrafo resumindo o objetivo e as principais decisões da reunião.
-2. **Pauta Inferida**: Tópicos discutidos detalhadamente.
-3. **Ações e Follow-up**: Lista de tarefas, responsáveis e prazos mencionados na reunião.
-
-Gere a saída formatada em Markdown elegante e profissional em português.
-
-Transcrição da reunião:
-{transcript_text}
-"""
-                
-                topic = query_ollama(topic_prompt, model)
-                revised = query_ollama(correct_prompt, model)
-                report = query_ollama(report_prompt, model)
-                
-                self.text_writer.write_postprocessed(revised, report)
-                
-                if topic:
-                    final_folder = self.text_writer.rename_folder_with_topic(topic)
-            else:
-                logger.info("Ollama indisponível ou nenhum modelo instalado. Pulando refinamento de IA.")
-                
         self.set_status("Sessão finalizada com sucesso.")
         return final_folder

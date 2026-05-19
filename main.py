@@ -74,8 +74,7 @@ def record(
     mic_name: str = typer.Option(None, "--mic-name", help="Filtrar microfone por nome (substring)"),
     speaker_name: str = typer.Option(None, "--speaker-name", help="Filtrar saída de áudio para loopback por nome"),
     no_mic: bool = typer.Option(False, "--no-mic", help="Desativar captura do microfone"),
-    no_speaker: bool = typer.Option(False, "--no-speaker", help="Desativar captura do som do sistema (loopback)"),
-    no_postprocess: bool = typer.Option(False, "--no-postprocess", help="Desativar pós-processamento de IA com Ollama local")
+    no_speaker: bool = typer.Option(False, "--no-speaker", help="Desativar captura do som do sistema (loopback)")
 ):
     """Start recording and transcribing the meeting in real-time."""
     from utils.meeting_manager import MeetingManager
@@ -104,7 +103,6 @@ def record(
         no_speaker=no_speaker,
         mic_name=mic_name,
         speaker_name=speaker_name,
-        no_postprocess=no_postprocess,
         on_transcription=on_trans,
         on_status=on_stat
     )
@@ -120,7 +118,7 @@ def record(
         while True:
             time.sleep(0.5)
     except KeyboardInterrupt:
-        console.print("\n[bold yellow]Encerrando captura e iniciando pós-processamento...[/bold yellow]")
+        console.print("\n[bold yellow]Encerrando captura e finalizando arquivos...[/bold yellow]")
         final_path = manager.stop_meeting()
         console.print(f"[bold green]Gravação finalizada e salva em:[/bold green] [cyan]{final_path}[/cyan]")
 

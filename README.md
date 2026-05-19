@@ -71,7 +71,7 @@ Por padrao o app:
 
 - usa o microfone padrao;
 - usa o alto-falante padrao para loopback;
-- salva arquivos em `transcripts/`.
+- salva arquivos em `transcricoes/`.
 
 Ao encerrar a gravacao, o app tenta gerar automaticamente com `gemma4:latest`:
 
@@ -152,7 +152,7 @@ Para um notebook comum, `small` com `compute_type=int8` tende a ser o melhor pon
 Cada sessao cria uma pasta como:
 
 ```text
-transcripts/2026-05-07_14-30-00_daily/
+transcricoes/2026-05-07_14-30-00_daily/
 ```
 
 Dentro dela voce encontra:

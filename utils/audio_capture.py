@@ -10,7 +10,7 @@ logger = logging.getLogger("AudioCapture")
 class AudioRecorderThread(threading.Thread):
     def __init__(self, device, source_name, sample_rate=16000, chunk_size=480, 
                  transcription_queue=None, meeting_start_time=None, 
-                 vad_mode=2, silence_timeout_s=1.5, rms_callback=None):
+                 vad_mode=2, silence_timeout_s=0.8, max_segment_s=6.0, rms_callback=None):
         super().__init__(name=f"Recorder_{source_name}")
         self.device = device
         self.source_name = source_name
@@ -24,7 +24,8 @@ class AudioRecorderThread(threading.Thread):
         self.vad = VADDetector(
             sample_rate=sample_rate,
             mode=vad_mode,
-            silence_timeout_s=silence_timeout_s
+            silence_timeout_s=silence_timeout_s,
+            max_segment_s=max_segment_s
         )
         
         self.samples_recorded = 0
@@ -66,18 +67,25 @@ class AudioRecorderThread(threading.Thread):
                         self.speech_start_time = chunk_start_time
                         
                     if completed_segment is not None:
-                        # Segment finished. Calculate end time without trailing silence
-                        silence_duration = self.vad.silence_timeout_frames * (self.vad.frame_duration_ms / 1000.0)
-                        actual_end_time = max(self.speech_start_time or 0.0, chunk_end_time - silence_duration)
+                        segment_audio = completed_segment["audio"]
+                        segment_duration = len(segment_audio) / self.sample_rate
+                        if completed_segment["continues"]:
+                            actual_end_time = (self.speech_start_time or 0.0) + segment_duration
+                        else:
+                            silence_duration = self.vad.silence_timeout_frames * (self.vad.frame_duration_ms / 1000.0)
+                            actual_end_time = max(self.speech_start_time or 0.0, chunk_end_time - silence_duration)
                         
                         if self.transcription_queue:
                             self.transcription_queue.put({
                                 "source": self.source_name,
                                 "start_time": self.speech_start_time,
                                 "end_time": actual_end_time,
-                                "audio": completed_segment
+                                "audio": segment_audio
                             })
-                        self.speech_start_time = None
+                        if completed_segment["continues"]:
+                            self.speech_start_time = actual_end_time
+                        else:
+                            self.speech_start_time = None
                         
         except Exception as e:
             logger.error(f"Erro na thread de gravação [{self.source_name}]: {e}")
@@ -89,11 +97,12 @@ class AudioRecorderThread(threading.Thread):
         # Flush webrtcvad buffers
         remaining = self.vad.flush()
         if remaining is not None and self.speech_start_time is not None:
+            segment_audio = remaining["audio"]
             actual_end_time = self.samples_recorded / self.sample_rate
             if self.transcription_queue:
                 self.transcription_queue.put({
                     "source": self.source_name,
                     "start_time": self.speech_start_time,
                     "end_time": actual_end_time,
-                    "audio": remaining
+                    "audio": segment_audio
                 })

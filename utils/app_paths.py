@@ -11,8 +11,8 @@ def get_project_root():
         return os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 
 def get_transcripts_dir():
-    """Returns the path to the transcripts directory."""
-    path = os.path.join(get_project_root(), "transcripts")
+    """Returns the path to the transcriptions directory."""
+    path = os.path.join(get_project_root(), "transcricoes")
     os.makedirs(path, exist_ok=True)
     return path
 

@@ -397,7 +397,7 @@ class MainWindow(QMainWindow):
             self.btn_stop.setEnabled(False)
             self.status_badge.setText("Processando...")
             
-            # Stop and postprocess in a background thread to prevent GUI freezing
+            # Stop and finalize in a background thread to prevent GUI freezing
             def run_stop():
                 folder = self.manager.stop_meeting()
                 
@@ -443,7 +443,7 @@ class MainWindow(QMainWindow):
             path_to_open = self.manager.text_writer.transcript_path
         elif self.last_folder_path:
             # Check for different files in order of preference
-            options = ["transcript_revisado.md", "transcript_diarizado.md", "transcript.md"]
+            options = ["transcript_diarizado.md", "transcript.md"]
             for opt in options:
                 test_path = os.path.join(self.last_folder_path, opt)
                 if os.path.exists(test_path):

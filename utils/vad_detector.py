@@ -6,7 +6,7 @@ logger = logging.getLogger("VADDetector")
 
 class VADDetector:
     def __init__(self, sample_rate=16000, frame_duration_ms=30, mode=2, 
-                 silence_timeout_s=1.5, speech_trigger_s=0.2):
+                 silence_timeout_s=0.8, speech_trigger_s=0.2, max_segment_s=6.0):
         self.sample_rate = sample_rate
         self.frame_duration_ms = frame_duration_ms
         self.vad = webrtcvad.Vad(mode)
@@ -15,6 +15,7 @@ class VADDetector:
         self.frame_size = int(sample_rate * frame_duration_ms / 1000)
         self.silence_timeout_frames = int(silence_timeout_s * 1000 / frame_duration_ms)
         self.speech_trigger_frames = int(speech_trigger_s * 1000 / frame_duration_ms)
+        self.max_segment_frames = max(1, int(max_segment_s * 1000 / frame_duration_ms))
         
         self.is_speaking = False
         self.speech_buffer = []
@@ -26,7 +27,8 @@ class VADDetector:
         """
         Processes a block of float32 samples.
         Splits into 30ms frames and runs VAD.
-        Returns a completed speech segment as a float32 numpy array or None.
+        Returns a dict with the completed speech segment and whether the speaker
+        should still be considered mid-utterance, or None.
         """
         # Convert float32 [-1, 1] to int16
         int16_chunk = (float32_mono_chunk * 32767.0).clip(-32768, 32767).astype(np.int16)
@@ -60,6 +62,14 @@ class VADDetector:
                 
                 if self.is_speaking:
                     self.speech_buffer.append(frame_float32)
+                    if len(self.speech_buffer) >= self.max_segment_frames:
+                        completed_segment = {
+                            "audio": np.concatenate(self.speech_buffer),
+                            "continues": True
+                        }
+                        self.speech_buffer = []
+                        self.consecutive_silent_frames = 0
+                        break
             else:
                 self.consecutive_silent_frames += 1
                 self.consecutive_speech_frames = 0
@@ -77,7 +87,10 @@ class VADDetector:
                             segment_chunks = self.speech_buffer
                             
                         if segment_chunks:
-                            completed_segment = np.concatenate(segment_chunks)
+                            completed_segment = {
+                                "audio": np.concatenate(segment_chunks),
+                                "continues": False
+                            }
                             
                         self.speech_buffer = []
                         self.consecutive_silent_frames = 0
@@ -101,7 +114,10 @@ class VADDetector:
             self.consecutive_speech_frames = 0
             
             if segment_chunks:
-                return np.concatenate(segment_chunks)
+                return {
+                    "audio": np.concatenate(segment_chunks),
+                    "continues": False
+                }
         return None
 
 def extract_voice_signature(audio_data, sample_rate=16000):
