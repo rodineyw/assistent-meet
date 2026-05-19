@@ -3,3 +3,6 @@ logs/
 .mypy_cache/
 transcricoes/
 __pycache__/
+build/
+dist/
+dist-installer/

@@ -3,18 +3,21 @@ import math
 import logging
 import subprocess
 import threading
+import ctypes
 from PySide6.QtCore import Qt, QPoint, QTimer, QObject, Signal, Slot
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
     QPlainTextEdit, QPushButton, QComboBox, QLineEdit, QFrame, 
     QMessageBox, QDialog, QApplication, QSizePolicy
 )
-from PySide6.QtGui import QPainter, QColor, QPen, QBrush, QTextCursor
+from PySide6.QtGui import QPainter, QColor, QPen, QBrush, QTextCursor, QIcon, QPixmap
+from PySide6.QtSvg import QSvgRenderer
 import soundcard as sc
 
 from utils.meeting_manager import MeetingManager
+from utils.app_info import APP_ID, APP_NAME
 from utils.clipboard import copy_to_clipboard
-from utils.app_paths import get_transcripts_dir
+from utils.app_paths import get_app_icon_path, get_transcripts_dir, get_ui_asset_path
 
 logger = logging.getLogger("MainWindow")
 
@@ -24,6 +27,33 @@ class RecorderSignalsBridge(QObject):
     status_changed = Signal(str)
     rms_received = Signal(str, float)                        # source, rms_value
     meeting_stopped = Signal(object)                         # folder path or None
+
+
+def load_app_icon():
+    """Loads the application icon from the bundled UI assets."""
+    icon_path = get_app_icon_path()
+    if not icon_path:
+        return QIcon()
+    return QIcon(icon_path)
+
+
+def render_logo_pixmap(size=32):
+    """Renders the SVG logo into a pixmap for the header."""
+    icon_path = get_app_icon_path()
+    if not icon_path or not icon_path.lower().endswith(".svg"):
+        return QPixmap()
+
+    renderer = QSvgRenderer(icon_path)
+    if not renderer.isValid():
+        return QPixmap()
+
+    pixmap = QPixmap(size, size)
+    pixmap.fill(Qt.transparent)
+
+    painter = QPainter(pixmap)
+    renderer.render(painter)
+    painter.end()
+    return pixmap
 
 
 class MiniWaveWidget(QWidget):
@@ -201,6 +231,7 @@ class MainWindow(QMainWindow):
         
         # Floating window
         self.floating_widget = FloatingWaveform()
+        self._apply_branding()
         
         # Load style sheet
         self._load_stylesheet()
@@ -209,13 +240,19 @@ class MainWindow(QMainWindow):
         self._init_ui()
         
     def _load_stylesheet(self):
-        qss_path = os.path.join(os.path.dirname(__file__), "style.qss")
+        qss_path = get_ui_asset_path("style.qss")
         if os.path.exists(qss_path):
             try:
                 with open(qss_path, "r", encoding="utf-8") as f:
                     self.setStyleSheet(f.read())
             except Exception as e:
                 logger.error(f"Erro ao carregar QSS: {e}")
+
+    def _apply_branding(self):
+        app_icon = load_app_icon()
+        if not app_icon.isNull():
+            self.setWindowIcon(app_icon)
+            self.floating_widget.setWindowIcon(app_icon)
                 
     def _init_ui(self):
         central_widget = QWidget(self)
@@ -227,6 +264,13 @@ class MainWindow(QMainWindow):
         
         # Header Layout
         header_layout = QHBoxLayout()
+
+        logo_label = QLabel(self)
+        logo_pixmap = render_logo_pixmap(32)
+        if not logo_pixmap.isNull():
+            logo_label.setPixmap(logo_pixmap)
+            logo_label.setFixedSize(32, 32)
+            header_layout.addWidget(logo_label)
         
         title_label = QLabel("Assistente Meet", self)
         title_label.setObjectName("titleLabel")
@@ -505,7 +549,21 @@ class MainWindow(QMainWindow):
 
 def run_gui():
     import sys
+
+    if sys.platform == "win32":
+        try:
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_ID)
+        except Exception as e:
+            logger.warning(f"Não foi possível definir o AppUserModelID do Windows: {e}")
+
     app = QApplication(sys.argv)
+    app.setApplicationName(APP_NAME)
+    app.setApplicationDisplayName(APP_NAME)
+
+    app_icon = load_app_icon()
+    if not app_icon.isNull():
+        app.setWindowIcon(app_icon)
+
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
