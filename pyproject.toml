@@ -1,0 +1,36 @@
+[project]
+name = "assistent-meet"
+version = "0.1.0"
+description = "Aplicativo Windows offline para transcrição PT-BR"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "faster-whisper>=1.2.1",
+    "numpy>=2.4.6",
+    "pyperclip>=1.11.0",
+    "pyside6>=6.11.1",
+    "sounddevice>=0.5.5",
+    "webrtcvad-wheels>=2.0.14",
+    "soundcard>=0.4.6",
+    "typer>=0.12.3",
+]
+
+[project.scripts]
+meet-assist = "main:main"
+
+[dependency-groups]
+dev = [
+    "pyinstaller>=6.20.0",
+    "pytest>=9.0.3",
+    "ruff>=0.15.13",
+]
+
+[tool.uv]
+package = true
+
+[tool.setuptools.packages.find]
+include = ["utils", "ui"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

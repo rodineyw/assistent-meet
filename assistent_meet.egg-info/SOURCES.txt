@@ -1,0 +1,17 @@
+README.md
+pyproject.toml
+assistent_meet.egg-info/PKG-INFO
+assistent_meet.egg-info/SOURCES.txt
+assistent_meet.egg-info/dependency_links.txt
+assistent_meet.egg-info/entry_points.txt
+assistent_meet.egg-info/requires.txt
+assistent_meet.egg-info/top_level.txt
+ui/main_window.py
+utils/__init__.py
+utils/app_paths.py
+utils/audio_capture.py
+utils/clipboard.py
+utils/logger_config.py
+utils/text_writer.py
+utils/transcriber.py
+utils/vad_detector.py
