@@ -2,3 +2,4 @@
 logs/
 .mypy_cache/
 transcricoes/
+__pycache__/
