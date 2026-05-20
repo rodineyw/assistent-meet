@@ -1,8 +1,0 @@
-faster-whisper>=1.2.1
-numpy>=2.4.6
-pyperclip>=1.11.0
-pyside6>=6.11.1
-sounddevice>=0.5.5
-webrtcvad-wheels>=2.0.14
-soundcard>=0.4.6
-typer>=0.12.3
