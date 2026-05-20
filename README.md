@@ -1,288 +1,207 @@
 # Assistente Meet
 
-Aplicativo local para Windows focado em transcricao de reunioes em portugues, com processamento offline e exibicao em tempo real.
+Transcreva reunioes e arquivos de audio em portugues, localmente no Windows, sem depender de um servico de transcricao na nuvem.
 
-Hoje o projeto faz isto:
+O Assistente Meet foi pensado para quem precisa acompanhar conversas, entrevistas, aulas, atendimentos ou reunioes e quer manter o audio e os textos no proprio computador.
 
-- captura a sua voz pelo microfone;
-- captura o audio do computador via loopback;
-- transcreve localmente com Whisper;
-- mostra os trechos no app enquanto a reuniao acontece;
-- salva os arquivos da sessao em `transcricoes/`;
-- gera uma versao diarizada ao encerrar a gravacao.
+## O que o aplicativo faz
 
-## Objetivo
+- capta sua voz pelo microfone;
+- capta o audio do computador via loopback do Windows;
+- transcreve em tempo real com Whisper offline;
+- permite importar arquivos de audio e video para transcricao;
+- salva os resultados em arquivos Markdown e JSONL;
+- gera uma versao diarizada ao final do processamento.
 
-Esta versao prioriza:
+## Principais vantagens
 
-- execucao local, sem enviar audio para a nuvem;
-- boa precisao para PT-BR;
-- resposta rapida durante a reuniao;
-- arquitetura simples para evoluir depois.
+- processamento local, com foco em privacidade;
+- suporte a PT-BR;
+- transcricao em tempo real pela interface grafica;
+- importacao de arquivos como `.wav`, `.mp3`, `.m4a`, `.flac`, `.ogg`, `.mp4`, `.mkv`, `.mov` e `.avi`;
+- verificacao de atualizacoes pelo proprio aplicativo;
+- funcionamento em Windows com interface simples.
 
-## Stack
+## Para quem ele serve
 
-- `soundcard`: captura de microfone e loopback no Windows;
-- `faster-whisper`: motor de transcricao offline;
-- `webrtcvad-wheels`: deteccao de voz para evitar mandar silencio ao modelo;
-- `PySide6`: interface desktop;
-- `Typer`: CLI para operacao e testes rapidos.
+O app e util para:
+
+- reunioes online;
+- gravacao de entrevistas;
+- aulas e treinamentos;
+- analise de ligacoes ou demonstracoes;
+- transcricao offline de arquivos ja gravados.
+
+## Privacidade e uso offline
+
+O uso normal do aplicativo acontece localmente no seu computador.
+
+- O audio capturado nao e enviado automaticamente para um servico de transcricao externo.
+- As transcricoes ficam salvas na maquina do usuario.
+- O app pode verificar atualizacoes online quando essa opcao estiver habilitada.
+- Em algumas distribuicoes, o primeiro uso pode precisar preparar ou baixar o modelo Whisper se ele ainda nao estiver disponivel localmente.
 
 ## Requisitos
 
 - Windows
-- Python `3.11`, `3.12` ou `3.13`
-- `uv` instalado
+- microfone funcional para capturar sua voz
+- dispositivo de saida configurado no Windows para capturar o audio do sistema
+- conexao com a internet apenas se o modelo precisar ser baixado ou para verificar atualizacoes
 
-O projeto nao fixa mais `<3.14` no `pyproject.toml`, mas a pilha de audio/transcricao costuma ser mais previsivel em `3.12` ou `3.13`.
+## Download e instalacao
 
-Se quiser preparar o ambiente do zero com `uv`:
+Para usuarios finais, a forma recomendada de uso e o instalador publicado na pagina de releases do projeto.
+
+1. Baixe o instalador em `Releases`.
+2. Execute o arquivo `Assistente-Meet-Setup.exe`.
+3. Conclua a instalacao normalmente.
+4. Abra o aplicativo pelo menu Iniciar ou pelo atalho criado.
+
+Se voce preferir a versao portatil, tambem pode usar o executavel distribuido sem instalar, quando esse formato estiver disponivel na release.
+
+## Primeira execucao
+
+Na primeira abertura, confira estes pontos:
+
+1. Escolha o nome da reuniao.
+2. Confirme o microfone desejado.
+3. Confirme a saida de audio que representa o som do computador.
+4. Escolha o modelo Whisper.
+5. Clique em `Iniciar Reuniao`.
+
+Modelos disponiveis:
+
+- `tiny`: mais rapido, com menor precisao;
+- `base`: leve e bom para maquinas mais simples;
+- `small`: melhor equilibrio para a maioria dos casos;
+- `medium`: mais preciso, mas mais pesado.
+
+## Como usar
+
+### Transcricao ao vivo
+
+1. Abra o Assistente Meet.
+2. Defina o nome da reuniao.
+3. Escolha microfone, saida de audio e modelo.
+4. Clique em `Iniciar Reuniao`.
+5. Acompanhe a transcricao em tempo real na janela principal.
+6. Use `Pausar` e `Retomar` quando necessario.
+7. Clique em `Encerrar Reuniao` para gerar os arquivos finais.
+
+### Transcricao de arquivo
+
+1. Abra o aplicativo.
+2. Clique em `Importar Audio`.
+3. Selecione um arquivo de audio ou video.
+4. Aguarde a transcricao terminar.
+5. Abra a pasta gerada pelo proprio app.
+
+## Onde os arquivos ficam salvos
+
+Quando o aplicativo e usado como programa instalado no Windows, os dados do usuario ficam em:
+
+```text
+%LOCALAPPDATA%\Assistente Meet\
+```
+
+As principais pastas sao:
+
+- `transcricoes\`: transcricoes e arquivos finais;
+- `logs\`: logs do aplicativo;
+- `models\`: modelos Whisper usados localmente.
+
+Cada sessao cria uma pasta com data, hora e nome da reuniao, por exemplo:
+
+```text
+%LOCALAPPDATA%\Assistente Meet\transcricoes\2026-05-19_19-12-24_daily\
+```
+
+Arquivos gerados por sessao:
+
+- `transcript.md`: transcricao principal;
+- `events.jsonl`: eventos estruturados da sessao;
+- `transcript_diarizado.md`: versao diarizada;
+- `events_diarized.jsonl`: eventos diarizados.
+
+## Recursos da interface
+
+- visualizacao da transcricao em tempo real;
+- indicador de status;
+- visualizador flutuante;
+- copia rapida do texto para a area de transferencia;
+- abertura do transcript no Bloco de Notas;
+- abertura da pasta da sessao;
+- verificacao de atualizacoes;
+- icone na bandeja do sistema.
+
+## Limitacoes atuais
+
+- a captura do audio do sistema depende do loopback do Windows funcionar corretamente;
+- a diarizacao e heuristica e pode confundir vozes parecidas;
+- a velocidade da transcricao depende do modelo escolhido, da CPU e da qualidade do audio;
+- a qualidade final pode cair em ambientes com ruido, eco ou varias pessoas falando ao mesmo tempo;
+- a versao atual do projeto ainda esta em evolucao.
+
+## Solucao de problemas
+
+### O app abre e fecha sozinho
+
+- execute novamente pelo instalador mais recente;
+- confira se o Windows reconhece os dispositivos de audio;
+- se estiver rodando a partir do codigo-fonte, abra pelo terminal para ver o erro.
+
+### O audio do computador nao esta sendo transcrito
+
+- confirme qual saida esta definida como padrao no Windows;
+- selecione manualmente a saida correta no aplicativo;
+- teste reproduzir audio no dispositivo escolhido;
+- se necessario, reinicie o app apos trocar o dispositivo padrao.
+
+### A transcricao esta lenta
+
+- troque o modelo para `base` ou `tiny`;
+- feche programas que estejam consumindo muita CPU;
+- use um audio mais limpo, com menos ruido;
+- capture apenas a fonte necessaria quando estiver usando a versao de linha de comando.
+
+### O texto saiu com falhas
+
+- aproxime o microfone da fonte de voz;
+- reduza ruido ambiente;
+- evite sobreposicao de falas;
+- teste um modelo maior, como `small` ou `medium`.
+
+## Atualizacoes
+
+O aplicativo possui verificacao de atualizacoes na interface e pode avisar quando uma nova versao estiver disponivel.
+
+Se preferir, voce tambem pode baixar manualmente as novas versoes pela pagina de releases do projeto.
+
+## Para quem vai rodar a partir do codigo-fonte
+
+Se voce quer executar, testar ou empacotar o projeto manualmente:
 
 ```powershell
 uv python install 3.12
 uv venv --python 3.12
 uv sync
-```
-
-## Instalacao
-
-```powershell
-uv sync
-```
-
-## Como executar
-
-### Interface grafica
-
-Pelo launcher do projeto:
-
-```text
-Iniciar Assistente Meet.cmd
-```
-
-Ou direto pelo terminal:
-
-```powershell
 uv run python main.py
 ```
 
-O painel permite:
-
-- iniciar, pausar, retomar e encerrar a reuniao;
-- importar um arquivo de audio ou video para transcricao offline;
-- acompanhar o status da captura;
-- ver a transcricao em tempo real;
-- exibir um icone na bandeja do sistema do Windows enquanto o app estiver aberto;
-- verificar se existe uma nova versao disponivel;
-- abrir uma tela "Sobre" com a versao atual;
-- abrir a pasta de transcricoes;
-- abrir o transcript no Bloco de Notas.
-
-### Linha de comando
-
-Listar dispositivos:
+Comandos uteis:
 
 ```powershell
 uv run meet-assist devices
-```
-
-Iniciar uma reuniao:
-
-```powershell
 uv run meet-assist record --meeting-name daily --language pt --model small
 ```
 
-Na primeira execucao, o `faster-whisper` pode baixar o modelo escolhido. Depois disso, ele reutiliza o cache local.
-
-## Comportamento padrao
-
-Por padrao o app:
-
-- usa o microfone padrao do sistema;
-- usa o alto-falante padrao para captura por loopback;
-- grava os arquivos da sessao em `transcricoes/`;
-- mostra novos blocos de texto durante a reuniao;
-- exibe um icone no tray do Windows durante a execucao;
-- gera diarizacao heuristica ao encerrar.
-
-## Exemplos uteis
-
-Capturar so a sua voz:
-
-```powershell
-uv run meet-assist record --meeting-name 1-1 --no-speaker
-```
-
-Capturar so o audio do computador:
-
-```powershell
-uv run meet-assist record --meeting-name demo --no-mic
-```
-
-Usar dispositivos especificos:
-
-```powershell
-uv run meet-assist record --mic-name "USB Microphone" --speaker-name "Alto-falantes"
-```
-
-Trocar para um modelo mais leve:
-
-```powershell
-uv run meet-assist record --model base
-```
-
-Importar um arquivo local pelo app:
-
-- clique em `Importar Áudio`;
-- selecione um arquivo como `.wav`, `.mp3`, `.m4a`, `.flac`, `.mp4` ou `.mkv`;
-- o app transcreve offline e salva o resultado em `transcricoes/`.
-
-## Modelos recomendados
-
-- `tiny`: muito rapido, mas menos preciso;
-- `base`: leve e util para maquinas mais fracas;
-- `small`: melhor equilibrio entre qualidade e desempenho;
-- `medium`: mais preciso, mas mais pesado em CPU.
-
-Para a maioria dos notebooks, `small` e o melhor ponto de equilibrio.
-
-## Arquivos gerados
-
-Cada sessao cria uma pasta como:
-
-```text
-transcricoes/2026-05-19_19-12-24_daily/
-```
-
-Dentro dela voce encontra:
-
-- `transcript.md`: transcript principal em Markdown;
-- `events.jsonl`: eventos estruturados com tempo, fonte e texto;
-- `transcript_diarizado.md`: versao com rotulos heuristico de falantes;
-- `events_diarized.jsonl`: eventos diarizados com `speaker_label`.
-
-Quando a origem for um arquivo importado, os eventos aparecem com a fonte `Arquivo`.
-
-Hoje o fluxo principal nao depende de Ollama e nao gera automaticamente `transcript_revisado.md` nem `meeting_report.md`.
-
-## Como a transcricao funciona
-
-1. O microfone e o audio do sistema sao capturados em paralelo.
-2. O audio passa por VAD para separar fala de silencio.
-3. Trechos de fala entram em uma fila unica.
-4. O Whisper transcreve os blocos incrementalmente.
-5. O app atualiza a interface e grava os trechos em disco.
-6. Ao encerrar, o projeto tenta agrupar falas por similaridade acustica para gerar a versao diarizada.
-
-Para melhorar a sensacao de tempo real, falas longas podem ser quebradas em partes mesmo antes de terminar completamente.
-
-## Limitacoes atuais
-
-- a qualidade da captura do sistema depende do loopback do Windows funcionar corretamente;
-- a diarizacao e heuristica, entao pode confundir vozes parecidas;
-- a transcricao em tempo real ainda depende do equilibrio entre modelo escolhido, CPU disponivel e qualidade do audio;
-- o primeiro download de modelo ainda pode exigir internet, mesmo que o uso normal depois seja offline.
-
-## Troubleshooting
-
-Se o app abrir e fechar na hora:
-
-- rode `uv run meet-assist devices`;
-- confirme se os dispositivos de audio aparecem na listagem;
-- tente iniciar pelo terminal para ver a mensagem de erro.
-
-Se o audio do computador nao estiver entrando:
-
-- confirme qual saida esta definida como padrao no Windows;
-- compare esse nome com a saida exibida em `uv run meet-assist devices`;
-- tente informar manualmente `--speaker-name "Alto-falantes"`;
-- teste com `--no-mic` para isolar apenas o loopback.
-
-Se a transcricao estiver lenta:
-
-- troque para `--model base`;
-- capture apenas a fonte necessaria com `--no-mic` ou `--no-speaker`;
-- feche apps pesados que disputem CPU;
-- teste primeiro com audio limpo e volume mais alto.
-
-## Build para Windows
-
-Para gerar a versao distribuivel:
+Para gerar a build Windows:
 
 ```powershell
 .\.venv\Scripts\python.exe .\scripts\build_windows.py
 ```
 
-Esse script faz o seguinte:
-
-- converte o SVG do app em `.ico`;
-- gera o executavel com `PyInstaller`;
-- prepara o script do instalador do Inno Setup;
-- compila o instalador automaticamente se o `iscc` estiver instalado no Windows.
-
-Artefatos esperados:
-
-- `dist/Assistente Meet/Assistente Meet.exe`: versao portatil;
-- `build/AssistenteMeet.generated.iss`: script do instalador;
-- `dist-installer/`: instalador final, quando o Inno Setup estiver disponivel.
-
-## Atualizacoes de versao
-
-O app ja possui verificacao de atualizacao automatica e manual, mas voce precisa publicar um manifesto JSON em uma URL publica.
-
-Existe um exemplo pronto em:
-
-```text
-update-manifest.example.json
-```
-
-Formato esperado:
-
-```json
-{
-  "version": "0.2.0",
-  "download_url": "https://seu-dominio.com/downloads/Assistente-Meet-Setup-0.2.0.exe",
-  "notes": "Melhorias na transcricao em tempo real."
-}
-```
-
-Para ativar a checagem, configure a URL desse manifesto em um destes pontos:
-
-- constante `UPDATE_METADATA_URL` em [utils/app_info.py](/c:/Users/rodin/Documents/projetos/assistent-meet/utils/app_info.py);
-- variavel de ambiente `ASSISTENTE_MEET_UPDATE_URL`.
-
-Ou configure diretamente um repositorio GitHub e deixe o app montar a URL bruta do manifesto:
-
-- `GITHUB_REPOSITORY` em `utils/app_info.py`, por exemplo `seu-usuario/seu-repo`;
-- `GITHUB_MANIFEST_BRANCH`, normalmente `main`;
-- `GITHUB_MANIFEST_PATH`, por exemplo `latest.json`.
-
-Tambem existem equivalentes por variavel de ambiente:
-
-- `ASSISTENTE_MEET_GITHUB_REPOSITORY`
-- `ASSISTENTE_MEET_GITHUB_BRANCH`
-- `ASSISTENTE_MEET_GITHUB_MANIFEST_PATH`
-
-Uma estrategia simples de release no GitHub e:
-
-1. subir o `latest.json` para o repositorio;
-2. publicar o instalador em GitHub Releases;
-3. apontar `download_url` para o asset da release.
-
-Exemplo de `download_url` usando GitHub Releases:
-
-```text
-https://github.com/seu-usuario/seu-repo/releases/latest/download/Assistente-Meet-Setup.exe
-```
-
-Quando houver uma versao maior que a atual, o app:
-
-- avisa automaticamente ao iniciar;
-- permite verificacao manual pelo botao `Atualizacoes`;
-- mostra o aviso tambem pelo icone da bandeja do sistema;
-- pode abrir a URL de download da nova versao.
-
-## Estrutura principal
+## Estrutura principal do projeto
 
 ```text
 main.py
@@ -292,13 +211,3 @@ models/
 logs/
 transcricoes/
 ```
-
-Os componentes mais importantes hoje sao:
-
-- `main.py`: entrada da CLI e da interface;
-- `ui/main_window.py`: janela principal do app;
-- `utils/audio_capture.py`: captura de audio;
-- `utils/vad_detector.py`: segmentacao de fala;
-- `utils/transcriber.py`: integracao com o Whisper;
-- `utils/meeting_manager.py`: orquestracao da sessao;
-- `utils/text_writer.py`: gravacao dos arquivos.
