@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0a0",
+  "version": "0.2.0a1",
   "download_url": "https://github.com/rodineyw/assistent-meet/releases/latest/download/Assistente-Meet-Setup.exe",
-  "notes": "Melhorias na transcrição em tempo real."
+  "notes": "Correcao da importacao de audio no app instalado e empacotamento do VAD offline."
 }
