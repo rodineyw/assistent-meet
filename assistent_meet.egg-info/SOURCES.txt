@@ -8,10 +8,14 @@ assistent_meet.egg-info/requires.txt
 assistent_meet.egg-info/top_level.txt
 ui/main_window.py
 utils/__init__.py
+utils/app_info.py
 utils/app_paths.py
+utils/app_update.py
 utils/audio_capture.py
 utils/clipboard.py
 utils/logger_config.py
+utils/meeting_manager.py
+utils/postprocessor.py
 utils/text_writer.py
 utils/transcriber.py
 utils/vad_detector.py

@@ -79,6 +79,28 @@ def find_pyinstaller():
     raise FileNotFoundError("PyInstaller nao encontrado. Rode `uv sync --dev` antes do build.")
 
 
+def find_inno_setup_compiler():
+    env_candidate = os.environ.get("INNO_SETUP_COMPILER", "").strip()
+    if env_candidate and os.path.exists(env_candidate):
+        return Path(env_candidate)
+
+    path_candidate = shutil.which("iscc")
+    if path_candidate:
+        return Path(path_candidate)
+
+    common_candidates = [
+        Path(r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe"),
+        Path(r"C:\Program Files\Inno Setup 6\ISCC.exe"),
+        Path(r"C:\Program Files (x86)\Inno Setup 5\ISCC.exe"),
+        Path(r"C:\Program Files\Inno Setup 5\ISCC.exe"),
+    ]
+    for candidate in common_candidates:
+        if candidate.exists():
+            return candidate
+
+    return None
+
+
 def run_pyinstaller(pyinstaller_path, icon_path, display_name):
     cmd = [
         str(pyinstaller_path),
@@ -113,7 +135,7 @@ def write_inno_script(metadata, icon_path):
         #define MyAppExeName "{metadata['display_name']}.exe"
 
         [Setup]
-        AppId={{{metadata['installer_guid']}}}
+        AppId={{{{{metadata['installer_guid']}}}}}
         AppName={{#MyAppName}}
         AppVersion={{#MyAppVersion}}
         AppPublisher={{#MyAppPublisher}}
@@ -151,14 +173,14 @@ def write_inno_script(metadata, icon_path):
 
 
 def try_build_installer(script_path):
-    iscc_path = shutil.which("iscc")
+    iscc_path = find_inno_setup_compiler()
     if not iscc_path:
         print("Inno Setup nao encontrado. O app portatil foi gerado em dist/, mas o instalador nao foi compilado.")
         print(f"Para gerar o instalador, instale o Inno Setup e rode novamente este script.")
         print(f"O script pronto ficou em: {script_path}")
         return False
 
-    subprocess.run([iscc_path, str(script_path)], cwd=ROOT, check=True)
+    subprocess.run([str(iscc_path), str(script_path)], cwd=ROOT, check=True)
     return True
 
 

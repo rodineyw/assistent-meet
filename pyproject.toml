@@ -1,6 +1,6 @@
 [project]
 name = "assistent-meet"
-version = "0.1.0"
+version = "0.2.0a0"
 description = "Aplicativo Windows offline para transcrição PT-BR"
 readme = "README.md"
 requires-python = ">=3.11"
