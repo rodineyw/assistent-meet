@@ -1,5 +1,5 @@
 {
   "version": "0.2.0a1",
-  "download_url": "https://github.com/rodineyw/assistent-meet/releases/latest/download/Assistente-Meet-Setup.exe",
+  "download_url": "https://github.com/rodineyw/assistent-meet/releases/download/v0.2.0a1/Assistente-Meet-Setup.exe",
   "notes": "Correcao da importacao de audio no app instalado e empacotamento do VAD offline."
 }
