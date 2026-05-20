@@ -6,4 +6,5 @@ __pycache__/
 build/
 dist/
 dist-installer/
-assistant_meet.egg-info/
+assistent_meet.egg-info/
+*.egg-info/

@@ -1,11 +1,12 @@
 import os
+import sys
 from importlib import metadata
 
 APP_NAME = "Assistente Meet"
 APP_EXECUTABLE_NAME = "Assistente Meet"
 APP_PUBLISHER = "Assistente Meet"
 APP_ID = "com.assistentmeet.desktop"
-DEFAULT_VERSION = "0.2.0a1"
+DEFAULT_VERSION = "0.2.0a2"
 UPDATE_METADATA_URL = ""
 GITHUB_REPOSITORY = "rodineyw/assistent-meet"
 GITHUB_MANIFEST_BRANCH = "main"
@@ -14,6 +15,9 @@ GITHUB_MANIFEST_PATH = "latest.json"
 
 def get_app_version():
     """Returns the installed package version when available."""
+    if getattr(sys, "frozen", False):
+        return DEFAULT_VERSION
+
     try:
         return metadata.version("assistent-meet")
     except metadata.PackageNotFoundError:
