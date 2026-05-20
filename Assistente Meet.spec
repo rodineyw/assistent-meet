@@ -2,12 +2,12 @@
 
 
 a = Analysis(
-    ['C:\\Users\\rodin\\Documents\\projetos\\assistent-meet\\main.py'],
+    ['C:\\Users\\rodin\\OneDrive - PEREZ DE REZENDE ADVOCACIA\\Documentos\\Python Scripts\\automação\\assistent-meet\\main.py'],
     pathex=[],
     binaries=[],
-    datas=[('C:\\Users\\rodin\\Documents\\projetos\\assistent-meet\\ui', 'ui')],
+    datas=[('C:\\Users\\rodin\\OneDrive - PEREZ DE REZENDE ADVOCACIA\\Documentos\\Python Scripts\\automação\\assistent-meet\\ui', 'ui')],
     hiddenimports=['PySide6.QtSvg'],
-    hookspath=['C:\\Users\\rodin\\Documents\\projetos\\assistent-meet\\hooks'],
+    hookspath=['C:\\Users\\rodin\\OneDrive - PEREZ DE REZENDE ADVOCACIA\\Documentos\\Python Scripts\\automação\\assistent-meet\\hooks'],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],
@@ -32,7 +32,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['C:\\Users\\rodin\\Documents\\projetos\\assistent-meet\\build\\assets\\assistente-meet.ico'],
+    icon=['C:\\Users\\rodin\\OneDrive - PEREZ DE REZENDE ADVOCACIA\\Documentos\\Python Scripts\\automação\\assistent-meet\\build\\assets\\assistente-meet.ico'],
 )
 coll = COLLECT(
     exe,
