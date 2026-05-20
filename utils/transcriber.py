@@ -92,15 +92,37 @@ class Transcriber:
             with suppress_stderr():
                 audio_data = decode_audio(file_path, sampling_rate=16000)
 
-            segments, info = self.model.transcribe(
-                audio_data,
-                language=self.language,
-                beam_size=3,
-                temperature=0.0,
-                condition_on_previous_text=False,
-                without_timestamps=False,
-                vad_filter=vad_filter
-            )
+            try:
+                segments, info = self.model.transcribe(
+                    audio_data,
+                    language=self.language,
+                    beam_size=3,
+                    temperature=0.0,
+                    condition_on_previous_text=False,
+                    without_timestamps=False,
+                    vad_filter=vad_filter
+                )
+            except Exception as exc:
+                should_retry_without_vad = vad_filter and (
+                    "silero_vad_v6.onnx" in str(exc) or
+                    "NO_SUCHFILE" in str(exc).upper()
+                )
+                if not should_retry_without_vad:
+                    raise
+
+                logger.warning(
+                    "Falha ao carregar o VAD empacotado do faster-whisper. "
+                    "A transcricao do arquivo sera refeita sem VAD interno."
+                )
+                segments, info = self.model.transcribe(
+                    audio_data,
+                    language=self.language,
+                    beam_size=3,
+                    temperature=0.0,
+                    condition_on_previous_text=False,
+                    without_timestamps=False,
+                    vad_filter=False
+                )
 
             for seg in segments:
                 text = (seg.text or "").strip()
