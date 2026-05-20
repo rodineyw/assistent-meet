@@ -117,6 +117,8 @@ def run_pyinstaller(pyinstaller_path, icon_path, display_name):
         str(ROOT / "hooks"),
         "--add-data",
         f"{ROOT / 'ui'};ui",
+        "--add-data",
+        f"{ROOT / 'models'};models",
         str(ROOT / "main.py"),
     ]
     subprocess.run(cmd, cwd=ROOT, check=True)

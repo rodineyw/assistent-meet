@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0a2",
-  "download_url": "https://github.com/rodineyw/assistent-meet/releases/download/v0.2.0a2/Assistente-Meet-Setup.exe",
-  "notes": "Correcao da deteccao de versao no app instalado e estabilidade do fluxo de atualizacao."
+  "version": "0.2.0a3",
+  "download_url": "https://github.com/rodineyw/assistent-meet/releases/download/v0.2.0a3/Assistente-Meet-Setup.exe",
+  "notes": "Correcao da importacao de audio com modelo Whisper local estavel e empacotamento do modelo no instalador."
 }

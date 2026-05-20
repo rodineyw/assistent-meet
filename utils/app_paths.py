@@ -63,3 +63,10 @@ def get_models_dir():
     path = os.path.join(get_project_root(), "models")
     os.makedirs(path, exist_ok=True)
     return path
+
+
+def get_bundled_models_dir():
+    """Returns the path to bundled models shipped with the app resources."""
+    path = os.path.join(get_resource_root(), "models")
+    os.makedirs(path, exist_ok=True)
+    return path

@@ -8,3 +8,5 @@ dist/
 dist-installer/
 assistent_meet.egg-info/
 *.egg-info/
+models/
+Assistente Meet.spec
